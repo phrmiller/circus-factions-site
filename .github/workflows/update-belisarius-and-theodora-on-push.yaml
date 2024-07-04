@@ -1,0 +1,42 @@
+name: Update Belisarius and Theodora on Push
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: "Deploy to Server"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$BELISARIUS_SSH_KEY" > ~/.ssh/belisarius.key
+          echo "$THEODORA_SSH_KEY" > ~/.ssh/theodora.key
+          chmod 600 ~/.ssh/belisarius.key
+          chmod 600 ~/.ssh/theodora.key
+          ssh-keyscan -p 2310 $BELISARIUS_IP > ~/.ssh/known_hosts
+          echo "Host belisarius
+            HostName $BELISARIUS_IP
+            User $BELISARIUS_USER
+            Port 2310
+            IdentityFile ~/.ssh/belisarius.key" > ~/.ssh/config
+          ssh-keyscan -p 2310 $THEODORA_IP >> ~/.ssh/known_hosts
+          echo "Host theodora
+            HostName $THEODORA_IP
+            User $THEODORA_USER
+            Port 2310
+            IdentityFile ~/.ssh/theodora.key" >> ~/.ssh/config
+        env:
+          BELISARIUS_SSH_KEY: ${{ secrets.BELISARIUS_SSH_KEY }}
+          BELISARIUS_IP: ${{ secrets.BELISARIUS_IP }}
+          BELISARIUS_USER: ${{ secrets.BELISARIUS_USER }}
+          THEODORA_SSH_KEY: ${{ secrets.THEODORA_SSH_KEY }}
+          THEODORA_IP: ${{ secrets.THEODORA_IP }}
+          THEODORA_USER: ${{ secrets.THEODORA_USER }}
+      - name: Fetch and Reset on Belisarius
+        run: ssh belisarius 'cd /home/phillip/GitHub/circus-factions-site && git fetch --all && git reset --hard origin/main && git clean -fd'
+      - name: Fetch and Reset on Theodora
+        run: ssh theodora 'cd /home/phillip/GitHub/circus-factions-site && git fetch --all && git reset --hard origin/main && git clean -fd'
